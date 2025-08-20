@@ -18,6 +18,7 @@ import {
   updatePassword, 
   deleteUser,
   getAllAuctionUsingPaging,
+  getAuctions,
   getUserOrders,
   getUserInvoices,
   paymentHistory,
@@ -96,9 +97,10 @@ export default function App() {
     
     try {
       console.log('Fetching auction data...');
-      console.log('Endpoint:', `${apiUrl}${getAllAuctionUsingPaging}1`); // Page 1
+      console.log('Using endpoint:', `${apiUrl}${getAuctions}`);
       
-      const response = await fetch(`${apiUrl}${getAllAuctionUsingPaging}1`, {
+      // Use the correct auction endpoint
+      const response = await fetch(`${apiUrl}${getAuctions}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -110,19 +112,51 @@ export default function App() {
       console.log('Auction response status:', response.status);
       
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Auction API error:', errorText);
-        throw new Error(`Server error: ${response.status} - ${errorText.substring(0, 100)}`);
+        console.log('getAuctions endpoint failed, trying admin endpoint as fallback...');
+        // Try the admin endpoint as fallback
+        const fallbackResponse = await fetch(`${apiUrl}${getAllAuctionUsingPaging}1`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+        });
+        
+        if (!fallbackResponse.ok) {
+          const errorText = await fallbackResponse.text();
+          console.error('Both auction endpoints failed:', errorText);
+          throw new Error(`Server error: ${fallbackResponse.status} - ${errorText.substring(0, 100)}`);
+        }
+        
+        const fallbackData = await fallbackResponse.json();
+        console.log('Fallback auction data received:', fallbackData);
+        
+        if (fallbackData.success && fallbackData.data) {
+          setAuctionData(fallbackData.data);
+        } else {
+          setAuctionData([]);
+        }
+        return;
       }
 
       const data = await response.json();
       console.log('Auction data received:', data);
+      console.log('Auction data structure:', JSON.stringify(data, null, 2));
       
       if (data.success && data.data) {
+        console.log('Setting auction data:', data.data);
+        setAuctionData(data.data);
+      } else if (data.success && Array.isArray(data)) {
+        console.log('Setting auction data (array format):', data);
+        setAuctionData(data);
+      } else if (data.data && Array.isArray(data.data)) {
+        console.log('Setting auction data (data array):', data.data);
         setAuctionData(data.data);
       } else {
         setAuctionData([]);
         console.warn('Auction API returned no data or success: false');
+        console.warn('Response structure:', data);
       }
     } catch (error) {
       console.error('Auction fetch error:', error);
@@ -401,7 +435,12 @@ export default function App() {
   // Refresh functions for each screen
   const refreshAuctionData = () => {
     console.log('Refreshing auction data...');
-    fetchAuctionData(authToken);
+    console.log('Auth token available:', !!authToken);
+    if (authToken) {
+      fetchAuctionData(authToken);
+    } else {
+      console.log('No auth token available for auction refresh');
+    }
   };
 
   const refreshOrderData = () => {
@@ -1202,7 +1241,7 @@ export default function App() {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         
         {/* Recent Auctions Section */}
-        {isLoggedIn && auctionData && auctionData.length > 0 && (
+        {isLoggedIn && (
           <View style={styles.auctionSection}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Recent Auctions</Text>
@@ -1210,24 +1249,42 @@ export default function App() {
                 <Ionicons name="refresh" size={20} color="#e74c3c" />
               </TouchableOpacity>
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.auctionScroll}>
-              {auctionData.slice(0, 5).map((auction, index) => (
-                <TouchableOpacity key={auction.id || index} style={styles.auctionCard}>
-                  <View style={styles.auctionImage}>
-                    <Text style={styles.auctionImageText}>🏛️</Text>
-                  </View>
-                  <Text style={styles.auctionTitle} numberOfLines={2}>
-                    {auction.title || 'Auction Item'}
-                  </Text>
-                  <Text style={styles.auctionPrice}>
-                    ${auction.startingPrice || auction.currentPrice || '0.00'}
-                  </Text>
-                  <Text style={styles.auctionStatus}>
-                    {auction.status || 'Active'}
-                  </Text>
+            
+            {auctionLoading ? (
+              <View style={styles.loadingContainer}>
+                <Text style={styles.loadingText}>Loading auctions...</Text>
+              </View>
+            ) : auctionError ? (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>Error loading auctions: {auctionError}</Text>
+                <TouchableOpacity style={styles.retryButton} onPress={refreshAuctionData}>
+                  <Text style={styles.retryButtonText}>Retry</Text>
                 </TouchableOpacity>
-              ))}
-            </ScrollView>
+              </View>
+            ) : auctionData && auctionData.length > 0 ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.auctionScroll}>
+                {auctionData.slice(0, 5).map((auction, index) => (
+                  <TouchableOpacity key={auction.id || index} style={styles.auctionCard}>
+                    <View style={styles.auctionImage}>
+                      <Text style={styles.auctionImageText}>🏛️</Text>
+                    </View>
+                    <Text style={styles.auctionTitle} numberOfLines={2}>
+                      {auction.title || auction.name || 'Auction Item'}
+                    </Text>
+                    <Text style={styles.auctionPrice}>
+                      ${auction.startingPrice || auction.currentPrice || auction.price || '0.00'}
+                    </Text>
+                    <Text style={styles.auctionStatus}>
+                      {auction.status || auction.state || 'Active'}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            ) : (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>No auctions available at the moment.</Text>
+              </View>
+            )}
           </View>
         )}
         
@@ -1501,6 +1558,53 @@ const styles = StyleSheet.create({
   auctionStatus: {
     fontSize: 14,
     color: '#7f8c8d',
+  },
+
+  // Loading, Error, and Empty States
+  loadingContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+
+  loadingText: {
+    fontSize: 16,
+    color: '#7f8c8d',
+  },
+
+  errorContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+
+  errorText: {
+    fontSize: 14,
+    color: '#e74c3c',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+
+  retryButton: {
+    backgroundColor: '#e74c3c',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+
+  retryButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+
+  emptyContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+
+  emptyText: {
+    fontSize: 16,
+    color: '#95a5a6',
+    textAlign: 'center',
   },
   
   // Bottom Navigation Styles

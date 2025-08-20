@@ -3,8 +3,8 @@ import { StyleSheet, Text, View, SafeAreaView, TouchableOpacity, ScrollView, Swi
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons, MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 
-const ProfileScreen = ({ onBack, t, isArabic, onTabPress, userData, onLogout, onDeleteAccount }) => {
-  const [isArabic, setIsArabic] = useState(false);
+const ProfileScreen = ({ onBack, t, isArabic, onTabPress, userData, getUserDisplayName, onLogout, onDeleteAccount }) => {
+  const [localIsArabic, setLocalIsArabic] = useState(false);
   const [showPersonalInfo, setShowPersonalInfo] = useState(false);
   const [personalInfoForm, setPersonalInfoForm] = useState({
     firstName: userData?.fname || '',
@@ -47,7 +47,7 @@ const ProfileScreen = ({ onBack, t, isArabic, onTabPress, userData, onLogout, on
   };
 
   const handleLanguageToggle = () => {
-    setIsArabic(!isArabic);
+    setLocalIsArabic(!localIsArabic);
   };
 
   const handleSaveChanges = () => {
@@ -57,7 +57,7 @@ const ProfileScreen = ({ onBack, t, isArabic, onTabPress, userData, onLogout, on
   };
 
   const renderPersonalInfoScreen = () => (
-    <SafeAreaView style={[styles.container, isArabic && styles.rtlContainer]}>
+    <SafeAreaView style={[styles.container, localIsArabic && styles.rtlContainer]}>
       <StatusBar style="dark" />
       
       {/* Header */}
@@ -174,7 +174,7 @@ const ProfileScreen = ({ onBack, t, isArabic, onTabPress, userData, onLogout, on
   }
 
   return (
-    <SafeAreaView style={[styles.container, isArabic && styles.rtlContainer]}>
+    <SafeAreaView style={[styles.container, localIsArabic && styles.rtlContainer]}>
       <StatusBar style="dark" />
       
       {/* Header */}
@@ -248,12 +248,12 @@ const ProfileScreen = ({ onBack, t, isArabic, onTabPress, userData, onLogout, on
             <View style={styles.menuIconContainer}>
               <Ionicons name="globe" size={20} color="#7f8c8d" />
             </View>
-            <Text style={styles.menuText}>{isArabic ? t('arabic') : t('english')}</Text>
+            <Text style={styles.menuText}>{localIsArabic ? t('arabic') : t('english')}</Text>
             <Switch
-              value={isArabic}
+              value={localIsArabic}
               onValueChange={handleLanguageToggle}
               trackColor={{ false: '#767577', true: '#e74c3c' }}
-              thumbColor={isArabic ? '#ffffff' : '#f4f3f4'}
+              thumbColor={localIsArabic ? '#ffffff' : '#f4f3f4'}
             />
           </View>
         </View>

@@ -1,5 +1,5 @@
 // API Routes Configuration
-const API_BASE_URL = "http://192.168.18.7:8080/api/";
+const API_BASE_URL = "https://castle-auction-production.up.railway.app/api/";
 
 // Authentication & User Management
 const login = "auth/";
@@ -138,6 +138,7 @@ const createNewAuction = "auction/create";
 const editAuction = "auction/edit";
 const updateAuctionStatus = "auction";
 const getAllAuctionUsingPaging = "auction/admin/";
+const getAuctions = "auction/all";
 const adminEditAuctionStatus = "auction/admin/edit-registration/";
 const auctionStatus = "auction";
 const selectAuctionLot = "auction/lot-select";
@@ -342,6 +343,7 @@ export {
   editAuction,
   updateAuctionStatus,
   getAllAuctionUsingPaging,
+  getAuctions,
   adminEditAuctionStatus,
   auctionStatus,
   selectAuctionLot,
