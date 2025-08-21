@@ -3,7 +3,7 @@ import { StyleSheet, Text, View, SafeAreaView, TouchableOpacity, ScrollView, Swi
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons, MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 
-const ProfileScreen = ({ onBack, t, isArabic, onTabPress, userData, getUserDisplayName, onLogout, onDeleteAccount }) => {
+const ProfileScreen = ({ onBack, t, isArabic, onTabPress, userData, getUserDisplayName, onLogout, onDeleteAccount, debugTokenStatus }) => {
   const [localIsArabic, setLocalIsArabic] = useState(false);
   const [showPersonalInfo, setShowPersonalInfo] = useState(false);
   const [personalInfoForm, setPersonalInfoForm] = useState({
@@ -256,6 +256,15 @@ const ProfileScreen = ({ onBack, t, isArabic, onTabPress, userData, getUserDispl
               thumbColor={localIsArabic ? '#ffffff' : '#f4f3f4'}
             />
           </View>
+
+          {/* Debug Button - Only show in development */}
+          <TouchableOpacity style={styles.menuItem} onPress={debugTokenStatus}>
+            <View style={styles.menuIconContainer}>
+              <Ionicons name="bug" size={20} color="#e74c3c" />
+            </View>
+            <Text style={[styles.menuText, { color: '#e74c3c' }]}>Debug Token Status</Text>
+            <Text style={styles.menuArrow}>›</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Action Buttons */}

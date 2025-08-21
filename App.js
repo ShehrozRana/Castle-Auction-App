@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, SafeAreaView, TouchableOpacity, ScrollView, ActivityIndicator, TextInput, Alert } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons, MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import TransactionScreen from './TransactionScreen';
 import OrderScreen from './OrderScreen';
 import ProfileScreen from './ProfileScreen';
@@ -19,8 +20,8 @@ import {
   deleteUser,
   getAllAuctionUsingPaging,
   getAuctions,
-  getUserOrders,
-  getUserInvoices,
+  getCustomerOrders,
+  getCustomerInvoices,
   paymentHistory,
   getAllConversation,
   getUserMessages,
@@ -74,6 +75,204 @@ export default function App() {
 
   const apiUrl = API_BASE_URL;
 
+  // Token storage keys
+  const TOKEN_KEY = 'auth_token';
+  const USER_DATA_KEY = 'user_data';
+
+  // Token management functions
+  const saveToken = async (token) => {
+    try {
+      await AsyncStorage.setItem(TOKEN_KEY, token);
+      console.log('Token saved successfully');
+    } catch (error) {
+      console.error('Error saving token:', error);
+    }
+  };
+
+  const getStoredToken = async () => {
+    try {
+      const token = await AsyncStorage.getItem(TOKEN_KEY);
+      console.log('Retrieved stored token:', token ? 'Available' : 'Not available');
+      return token;
+    } catch (error) {
+      console.error('Error retrieving token:', error);
+      return null;
+    }
+  };
+
+  const saveUserData = async (userData) => {
+    try {
+      await AsyncStorage.setItem(USER_DATA_KEY, JSON.stringify(userData));
+      console.log('User data saved successfully');
+    } catch (error) {
+      console.error('Error saving user data:', error);
+    }
+  };
+
+  const getStoredUserData = async () => {
+    try {
+      const userData = await AsyncStorage.getItem(USER_DATA_KEY);
+      return userData ? JSON.parse(userData) : null;
+    } catch (error) {
+      console.error('Error retrieving user data:', error);
+      return null;
+    }
+  };
+
+  const clearStoredData = async () => {
+    try {
+      await AsyncStorage.multiRemove([TOKEN_KEY, USER_DATA_KEY]);
+      console.log('Stored data cleared successfully');
+    } catch (error) {
+      console.error('Error clearing stored data:', error);
+    }
+  };
+
+  // Handle token expiration during API calls
+  const handleTokenExpiration = async () => {
+    console.log('Token expired during API call, logging out user...');
+    await clearStoredData();
+    setAuthToken(null);
+    setUserData(null);
+    setIsLoggedIn(false);
+    setCurrentTab('home');
+    setShowAuth(false);
+    setShowProfile(false);
+    setShowOrder(false);
+    setShowTransaction(false);
+    setShowChat(false);
+    setShowForgotPassword(false);
+    setShowOtpVerification(false);
+    setShowNewPassword(false);
+    setAuthForm({ fname: '', lname: '', email: '', password: '', confirmPassword: '', phone: '', code: '' });
+    
+    // Clear all fetched data
+    setAuctionData([]);
+    setOrderData([]);
+    setTransactionData([]);
+    setChatData([]);
+    setAuctionError(null);
+    setOrderError(null);
+    setTransactionError(null);
+    setChatError(null);
+    
+    Alert.alert(
+      'Session Expired',
+      'Your session has expired. Please sign in again.',
+      [{ text: 'OK' }]
+    );
+  };
+
+  // Debug function to check token status
+  const debugTokenStatus = async () => {
+    const storedToken = await getStoredToken();
+    const storedUserData = await getStoredUserData();
+    
+    console.log('=== TOKEN DEBUG INFO ===');
+    console.log('Current authToken state:', authToken ? 'Available' : 'Not available');
+    console.log('Stored token:', storedToken ? 'Available' : 'Not available');
+    console.log('Is logged in:', isLoggedIn);
+    console.log('User data:', userData ? 'Available' : 'Not available');
+    console.log('Stored user data:', storedUserData ? 'Available' : 'Not available');
+    
+    if (authToken) {
+      console.log('Current token (first 30 chars):', authToken.substring(0, 30) + '...');
+    }
+    if (storedToken) {
+      console.log('Stored token (first 30 chars):', storedToken.substring(0, 30) + '...');
+    }
+    console.log('========================');
+    
+    // Show alert with token status
+    Alert.alert(
+      'Token Debug Info',
+      `Current Token: ${authToken ? 'Available' : 'Not available'}\n` +
+      `Stored Token: ${storedToken ? 'Available' : 'Not available'}\n` +
+      `Is Logged In: ${isLoggedIn}\n` +
+      `User Data: ${userData ? 'Available' : 'Not available'}`,
+      [{ text: 'OK' }]
+    );
+  };
+
+  // Initialize app with stored token on startup
+  useEffect(() => {
+    const initializeApp = async () => {
+      console.log('Initializing app...');
+      const storedToken = await getStoredToken();
+      const storedUserData = await getStoredUserData();
+      
+      if (storedToken && storedUserData) {
+        console.log('Found stored token and user data, restoring session...');
+        setAuthToken(storedToken);
+        setUserData(storedUserData);
+        setIsLoggedIn(true);
+        
+        // Validate token by making a test API call with retry logic
+        let validationAttempts = 0;
+        const maxAttempts = 3;
+        
+        const validateToken = async () => {
+          try {
+            console.log(`Token validation attempt ${validationAttempts + 1}/${maxAttempts}`);
+            const response = await fetch(`${apiUrl}${getUser}`, {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Authorization': `Bearer ${storedToken}`
+              },
+            });
+            
+            if (response.ok) {
+              console.log('Stored token is valid, fetching user data...');
+              await fetchAllUserData(storedToken);
+              return true;
+            } else if (response.status === 401 || response.status === 403) {
+              // Only logout for actual authentication errors
+              console.log('Token is expired or invalid (401/403), clearing stored data...');
+              await clearStoredData();
+              setAuthToken(null);
+              setUserData(null);
+              setIsLoggedIn(false);
+              return true;
+            } else {
+              // For other errors (500, 502, etc.), don't logout immediately
+              console.log(`Server error (${response.status}), will retry...`);
+              return false;
+            }
+          } catch (error) {
+            console.error(`Error validating stored token (attempt ${validationAttempts + 1}):`, error);
+            // For network errors, don't logout immediately
+            return false;
+          }
+        };
+        
+        // Retry validation up to 3 times with delays
+        while (validationAttempts < maxAttempts) {
+          const success = await validateToken();
+          if (success) break;
+          
+          validationAttempts++;
+          if (validationAttempts < maxAttempts) {
+            console.log(`Retrying token validation in ${validationAttempts * 1000}ms...`);
+            await new Promise(resolve => setTimeout(resolve, validationAttempts * 1000));
+          }
+        }
+        
+        // If all attempts failed but not due to auth errors, keep user logged in
+        if (validationAttempts >= maxAttempts) {
+          console.log('Token validation failed after all attempts, but keeping user logged in for now...');
+          // Don't logout - let the user continue with their session
+          // The token will be validated again when they make actual API calls
+        }
+      } else {
+        console.log('No stored token found, user needs to login');
+      }
+    };
+    
+    initializeApp();
+  }, []);
+
   // Auto-fetch data when authToken changes (for existing logged-in users)
   useEffect(() => {
     if (authToken && isLoggedIn) {
@@ -83,6 +282,36 @@ export default function App() {
         fetchAllUserData(authToken);
       }
     }
+  }, [authToken, isLoggedIn]);
+
+  // Periodic token validation (every 5 minutes)
+  useEffect(() => {
+    if (!authToken || !isLoggedIn) return;
+
+    const validateTokenPeriodically = async () => {
+      try {
+        const response = await fetch(`${apiUrl}${getUser}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          },
+        });
+        
+        if (response.status === 401 || response.status === 403) {
+          console.log('Token expired during periodic validation, logging out...');
+          await handleTokenExpiration();
+        }
+      } catch (error) {
+        console.log('Periodic token validation failed (network error), continuing...');
+        // Don't logout for network errors during periodic validation
+      }
+    };
+
+    const interval = setInterval(validateTokenPeriodically, 5 * 60 * 1000); // 5 minutes
+
+    return () => clearInterval(interval);
   }, [authToken, isLoggedIn]);
 
   // Data fetching functions with error handling and fallbacks
@@ -97,10 +326,10 @@ export default function App() {
     
     try {
       console.log('Fetching auction data...');
-      console.log('Using endpoint:', `${apiUrl}${getAuctions}`);
+      console.log('Using endpoint:', `${apiUrl}${getAuctions}1`); // Using page 1 for initial load
       
-      // Use the correct auction endpoint
-      const response = await fetch(`${apiUrl}${getAuctions}`, {
+      // Use the correct auction endpoint with pagination
+      const response = await fetch(`${apiUrl}${getAuctions}1`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -112,6 +341,13 @@ export default function App() {
       console.log('Auction response status:', response.status);
       
       if (!response.ok) {
+        // Check if it's an authentication error
+        if (response.status === 401 || response.status === 403) {
+          console.log('Authentication error during auction fetch, handling token expiration...');
+          await handleTokenExpiration();
+          return;
+        }
+        
         console.log('getAuctions endpoint failed, trying admin endpoint as fallback...');
         // Try the admin endpoint as fallback
         const fallbackResponse = await fetch(`${apiUrl}${getAllAuctionUsingPaging}1`, {
@@ -124,6 +360,12 @@ export default function App() {
         });
         
         if (!fallbackResponse.ok) {
+          if (fallbackResponse.status === 401 || fallbackResponse.status === 403) {
+            console.log('Authentication error during fallback auction fetch, handling token expiration...');
+            await handleTokenExpiration();
+            return;
+          }
+          
           const errorText = await fallbackResponse.text();
           console.error('Both auction endpoints failed:', errorText);
           throw new Error(`Server error: ${fallbackResponse.status} - ${errorText.substring(0, 100)}`);
@@ -147,6 +389,9 @@ export default function App() {
       if (data.success && data.data) {
         console.log('Setting auction data:', data.data);
         setAuctionData(data.data);
+      } else if (data.success && data.auctions) {
+        console.log('Setting auction data (auctions format):', data.auctions);
+        setAuctionData(data.auctions);
       } else if (data.success && Array.isArray(data)) {
         console.log('Setting auction data (array format):', data);
         setAuctionData(data);
@@ -186,9 +431,9 @@ export default function App() {
     try {
       console.log('Fetching order data...');
       console.log('Token being used:', token ? `${token.substring(0, 20)}...` : 'No token');
-      console.log('Endpoint:', `${apiUrl}${getUser}`);
+      console.log('Endpoint:', `${apiUrl}${getCustomerOrders}`);
       
-      const response = await fetch(`${apiUrl}${getUser}`, {
+      const response = await fetch(`${apiUrl}${getCustomerOrders}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -200,6 +445,13 @@ export default function App() {
       console.log('Order response status:', response.status);
       
       if (!response.ok) {
+        // Check if it's an authentication error
+        if (response.status === 401 || response.status === 403) {
+          console.log('Authentication error during order fetch, handling token expiration...');
+          await handleTokenExpiration();
+          return;
+        }
+        
         const errorText = await response.text();
         console.error('Order API error:', errorText);
         throw new Error(`Server error: ${response.status} - ${errorText.substring(0, 100)}`);
@@ -209,16 +461,9 @@ export default function App() {
       console.log('Order data received:', data);
       
       if (data.success && data.data) {
-        // Check if the user data includes orders
-        if (data.data.orders) {
-          setOrderData(data.data.orders);
-        } else if (data.data.invoices) {
-          setOrderData(data.data.invoices);
-        } else {
-          // If no orders in user data, try the user orders endpoint
-          console.log('No orders in user data, trying user orders endpoint...');
-          await fetchUserOrders(token);
-        }
+        setOrderData(data.data);
+      } else if (data.success && Array.isArray(data)) {
+        setOrderData(data);
       } else {
         setOrderData([]);
         console.warn('Order API returned no data or success: false');
@@ -239,68 +484,7 @@ export default function App() {
     }
   };
 
-  const fetchUserOrders = async (token) => {
-    try {
-      console.log('Trying user orders endpoint:', `${apiUrl}${getUserOrders}`);
-      
-      const response = await fetch(`${apiUrl}${getUserOrders}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-      });
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.data) {
-          setOrderData(data.data);
-          return;
-        }
-      }
-      
-      // If user orders endpoint doesn't work, try user invoices
-      console.log('User orders failed, trying user invoices endpoint...');
-      await fetchUserInvoices(token);
-      
-    } catch (error) {
-      console.error('User orders fetch error:', error);
-      // Try user invoices as fallback
-      await fetchUserInvoices(token);
-    }
-  };
-
-  const fetchUserInvoices = async (token) => {
-    try {
-      console.log('Trying user invoices endpoint:', `${apiUrl}${getUserInvoices}`);
-      
-      const response = await fetch(`${apiUrl}${getUserInvoices}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.data) {
-          setOrderData(data.data);
-          return;
-        }
-      }
-      
-      // If all endpoints fail, set empty data
-      console.log('All user order endpoints failed, setting empty data');
-      setOrderData([]);
-      
-    } catch (error) {
-      console.error('User invoices fetch error:', error);
-      setOrderData([]);
-    }
-  };
 
   const fetchTransactionData = async (token = authToken) => {
     if (!token) {
@@ -327,6 +511,13 @@ export default function App() {
       console.log('Transaction response status:', response.status);
       
       if (!response.ok) {
+        // Check if it's an authentication error
+        if (response.status === 401 || response.status === 403) {
+          console.log('Authentication error during transaction fetch, handling token expiration...');
+          await handleTokenExpiration();
+          return;
+        }
+        
         const errorText = await response.text();
         console.error('Transaction API error:', errorText);
         throw new Error(`Server error: ${response.status} - ${errorText.substring(0, 100)}`);
@@ -337,6 +528,8 @@ export default function App() {
       
       if (data.success && data.data) {
         setTransactionData(data.data);
+      } else if (data.success && Array.isArray(data)) {
+        setTransactionData(data);
       } else {
         setTransactionData([]);
         console.warn('Transaction API returned no data or success: false');
@@ -368,9 +561,9 @@ export default function App() {
     
     try {
       console.log('Fetching chat data...');
-      console.log('Endpoint:', `${apiUrl}${getAllConversation}`);
+      console.log('Endpoint:', `${apiUrl}${getAllConversation}/${userData.id}`);
       
-      const response = await fetch(`${apiUrl}${getAllConversation}`, {
+      const response = await fetch(`${apiUrl}${getAllConversation}/${userData.id}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -382,6 +575,13 @@ export default function App() {
       console.log('Chat response status:', response.status);
       
       if (!response.ok) {
+        // Check if it's an authentication error
+        if (response.status === 401 || response.status === 403) {
+          console.log('Authentication error during chat fetch, handling token expiration...');
+          await handleTokenExpiration();
+          return;
+        }
+        
         const errorText = await response.text();
         console.error('Chat API error:', errorText);
         throw new Error(`Server error: ${response.status} - ${errorText.substring(0, 100)}`);
@@ -392,6 +592,8 @@ export default function App() {
       
       if (data.success && data.data) {
         setChatData(data.data);
+      } else if (data.success && Array.isArray(data)) {
+        setChatData(data);
       } else {
         setChatData([]);
         console.warn('Chat API returned no data or success: false');
@@ -624,10 +826,22 @@ export default function App() {
         }
 
         console.log('Parsed response data:', data);
+        console.log('Response success:', data.success);
+        console.log('Response token:', data.token ? 'Present' : 'Missing');
+        console.log('Response user:', data.user ? 'Present' : 'Missing');
         
         if (data.success) {
           console.log('Login successful, setting auth token:', data.token ? 'Token received' : 'No token');
           console.log('Token value:', data.token ? `${data.token.substring(0, 30)}...` : 'No token');
+          
+          // Save token and user data to persistent storage
+          if (data.token) {
+            await saveToken(data.token);
+          }
+          if (data.user) {
+            await saveUserData(data.user);
+          }
+          
           setIsLoggedIn(true);
           setUserData(data.user);
           setAuthToken(data.token);
@@ -892,8 +1106,21 @@ export default function App() {
       }
 
       console.log('Signup parsed response data:', data);
+      console.log('Signup response success:', data.success);
+      console.log('Signup response token:', data.token ? 'Present' : 'Missing');
+      console.log('Signup response user:', data.user ? 'Present' : 'Missing');
       
       if (data.success) {
+        console.log('Signup successful, setting auth token:', data.token ? 'Token received' : 'No token');
+        
+        // Save token and user data to persistent storage
+        if (data.token) {
+          await saveToken(data.token);
+        }
+        if (data.user) {
+          await saveUserData(data.user);
+        }
+        
         setIsLoggedIn(true);
         setUserData(data.user);
         setAuthToken(data.token);
@@ -966,7 +1193,10 @@ export default function App() {
   };
 
   const handleLogout = async () => {
-        // Clear local data
+    // Clear stored data
+    await clearStoredData();
+    
+    // Clear local data
     setIsLoggedIn(false);
     setUserData(null);
     setAuthToken(null);
@@ -1017,6 +1247,9 @@ export default function App() {
               const data = await response.json();
               
               if (data.success) {
+                // Clear stored data
+                await clearStoredData();
+                
                 setIsLoggedIn(false);
                 setUserData(null);
                 setAuthToken(null);
@@ -1156,6 +1389,7 @@ export default function App() {
         getUserDisplayName={getUserDisplayName}
         onLogout={handleLogout}
         onDeleteAccount={handleDeleteAccount}
+        debugTokenStatus={debugTokenStatus}
       />
     );
   }
@@ -1272,7 +1506,7 @@ export default function App() {
                       {auction.title || auction.name || 'Auction Item'}
                     </Text>
                     <Text style={styles.auctionPrice}>
-                      ${auction.startingPrice || auction.currentPrice || auction.price || '0.00'}
+                      {auction.depositamount + auction.depositCurrency || auction.currentPrice || auction.price || '0.00'}
                     </Text>
                     <Text style={styles.auctionStatus}>
                       {auction.status || auction.state || 'Active'}

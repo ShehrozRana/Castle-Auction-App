@@ -1,16 +1,92 @@
 // API Routes Configuration
 const API_BASE_URL = "https://castle-auction-production.up.railway.app/api/";
 
-// Authentication & User Management
+// 🔐 Authentication APIs
 const login = "auth/";
+const signup = "users/signup";
+const sendCode = "users/send-code";
+const verifyOtpRegistration = "users/verify-otp/registration";
+const forgotPassword = "users/forget-password";
+const verifyOtpForgotPassword = "users/verify-otp/forget-password";
+const updatePassword = "users/update-password";
+const changePassword = "users/change-password";
+const getUser = "users/me";
+const updateUser = "users/update-user";
+const deleteUser = "users/";
+
+// 🏛️ Auction APIs
+const getAuctions = "auction/all/"; // GET /auction/all/{page}
+const getAuctionDetail = "auction/details/"; // GET /auction/details/{auctionId}
+const getLotDetail = "lot/details/"; // GET /lot/details/{lotId}
+const likeAuction = "auction/like/"; // POST /auction/like/{auctionId}
+const getFavoriteAuctions = "auction/fav/me/"; // GET /auction/fav/me/{page}
+const createAuctionRegistration = "auction/registration/"; // POST /auction/registration/{auctionId}
+const getMyRegistrations = "auction/me/registration"; // GET /auction/me/registration
+const editAuctionRegistration = "auction/edit-registration/"; // PUT /auction/edit-registration/{auctionId}
+
+// 📁 Category APIs
+const getAllCategories = "cat/all"; // GET /cat/all
+const getSubcategories = "subcat/all"; // GET /subcat/all?category={categoryId}
+
+// 👤 User Profile APIs
+const updateUserProfile = "users/update-user";
+
+// 📝 Orders & Invoices
+const getCustomerOrders = "auction/customer/order"; // GET /auction/customer/order
+const getOrderDetails = "auction/order/details"; // GET /auction/order/details
+const getCustomerInvoices = "auction/customer/invoices"; // GET /auction/customer/invoices
+
+// 💳 Payment APIs
+const getPaymentKey = "payment/key"; // GET /payment/key
+const createPayment = "payment/create"; // POST /payment/create
+const paymentHistory = "payment/history";
+
+// 💬 Chat & Messaging
+const getAllConversation = "auction/conversations"; // GET /auction/conversations
+const getUserMessages = "auction/messages"; // GET /auction/messages
+const sendMessage = "msg/send"; // POST /msg/send
+const getLiveChat = "msg/liveChat"; // GET /msg/liveChat
+const seenMessage = "msg/seen-msg"; // PUT /msg/seen-msg
+
+// 🔔 Notifications
+const getNotification = "notification/all"; // GET /notification/all
+const markNotificationSeen = "notification/check-seen"; // PUT /notification/check-seen
+const deleteNotification = "notification/"; // DELETE /notification/{notificationId}
+
+// 📱 Support & Help
+const createSupport = "support/create"; // POST /support/create
+const getFAQCategories = "pages/faqcat"; // GET /pages/faqcat
+const getFAQs = "pages/faqs"; // GET /pages/faqs
+const getFooterInfo = "users/footer"; // GET /users/footer
+
+// 📁 File Upload
+const imageUpload = "image/upload"; // POST /image/upload
+const videoUpload = "image/video"; // POST /image/video
+
+// 🌍 Localization & Settings
+const getCurrencyRates = "users/data"; // GET /users/data
+const getPrivacyPolicy = "users/privacy"; // GET /users/privacy
+const getTermsConditions = "users/terms"; // GET /users/terms
+
+// 🏦 Bank & Payment Methods
+const getBanks = "bank"; // GET /bank
+
+// 🔄 Refund & Wallet
+const requestRefund = "deposit/request-refund"; // POST /deposit/request-refund
+const addToWallet = "deposit/add-to-wallet"; // POST /deposit/add-to-wallet
+
+// Legacy endpoints (keeping for backward compatibility)
+const getAllAuctionUsingPaging = "auction/admin/";
+const getUserOrders = "auction/order/user";
+const getUserInvoices = "auction/invoice/user";
+
+// Admin endpoints (not used in mobile app)
 const addStaff = "users/admin/add-staff";
 const getStaffUsers = "users/admin/staff/";
 const updateStaffUser = "users/admin/staff-update";
 const deleteStaffUser = "users";
-
 const teamLogin = "auth/company/team";
-const quote = `quote`;
-const imageUpload = `image/upload`;
+const quote = "quote";
 const createCompanyMember = "users/company-admin/add-member";
 const editCompanyMember = "users/company-admin/members-update";
 const getCompanyMember = "users/company-admin/members";
@@ -33,11 +109,9 @@ const updateClientDetailsByAdmin = "client/edit/";
 const getClientDetails = "client/detail/";
 const acceptStatusProposal = "lead/accept-proposal/";
 const getPackages = "package/all";
-const getUser = "users/me";
 
 // Payment APIs
 const paymentCheckout = "payment/checkoutsession";
-const paymentKey = "payment/key";
 const compeleteSubscription = "payment/complete-subscription";
 const updateSubscription = "payment/updateSubscription";
 const cancelSubscription = "payment/cancelSubscription";
@@ -68,9 +142,6 @@ const getCompanies = "users/admin/company";
 const changeClientPassword = "client/edit";
 
 // Chat APIs
-const getAllConversation = "auction/conversations";
-const getUserMessages = "auction/messages";
-const seenMessage = "/seen-msg";
 const chatUserConversation = "users/conversations";
 
 // Payment & Account APIs
@@ -79,7 +150,6 @@ const createAccountStripe = "payment/createAccount";
 const createPaymentStripe = "payment/create";
 const companyEditProfile = "users/company-admin/update";
 const paymentProposals = "payment/proposal";
-const paymentHistory = "payment/history";
 
 // Metrics APIs
 const leadMetrices = "lead/dashboard";
@@ -89,17 +159,11 @@ const updatePayment = "payment/updateRequest";
 const sendOtherProposal = "lead/send-other-proposal";
 const taskMetrices = "teamtask/member/dashboard";
 
-// Notification APIs
-const getNotification = "notification/all";
-const seenNotification = "notification/check-seen";
-const deleteNotification = "notification/";
-
 // Privacy & Terms APIs
-const getPrivacyPolicy = "pages/privacy";
+const getPrivacyPolicyLegacy = "pages/privacy";
 const getTerms = "pages/terms";
 
 // Support APIs
-const createSupport = "support/create";
 const getSupports = "support/admin/";
 const attendSupport = "support/attended";
 
@@ -137,25 +201,18 @@ const updateLotStatus = "lot";
 const createNewAuction = "auction/create";
 const editAuction = "auction/edit";
 const updateAuctionStatus = "auction";
-const getAllAuctionUsingPaging = "auction/admin/";
-const getAuctions = "auction/all";
 const adminEditAuctionStatus = "auction/admin/edit-registration/";
 const auctionStatus = "auction";
 const selectAuctionLot = "auction/lot-select";
-const getAuctionDetail = "auction/details";
 const editAuctionApplication = "auction/admin/edit-registration";
 const deleteAuctionApplication = "applications/admin/delete";
 const auctionBidWinners = "auction/admin/winners/";
 const orderUpdate = "auction/order/update";
 const bidWinnerDetail = "auction/admin/winner-detail";
-const getLiveChat = "msg/liveChat";
 const auctionRegistrationTracking = "auction/admin/registration/";
-const createAuctionRegistration = "auction/registration/";
-const editAuctionRegistration = "auction/edit-registration";
 const getAuctionRegistration = "auction/admin/registration-detail";
 const privacyPages = "users";
 const getInvoiceDetail = "auction/order/details";
-const updateUser = "users/update-user";
 const sendInvoice = "auction/send-invoice";
 const getInvoices = "auction/admin/invoices/";
 const editInvoice = "auction/update-invoice";
@@ -179,7 +236,6 @@ const sendUpdates = "support/sendUpdatesEmail";
 // Deposit & Refund APIs
 const refundProcess = "admin/deposits/process-refund";
 const stripeRefund = "admin/deposits/process-stripe-refund";
-const addToWallet = "admin/deposits/add-to-wallet";
 
 // Subcategory APIs
 const subCatCreate = "subcat/create";
@@ -189,33 +245,98 @@ const editSubCat = "subcat/edit";
 const subCatStatusUpdate = "subcat/";
 
 // User Authentication APIs (for our app)
-const sendCode = "users/send-code";
-const verifyOtpRegistration = "users/verify-otp/registration";
-const signup = "users/signup";
-const forgotPassword = "users/forget-password";
-const verifyOtpForgotPassword = "users/verify-otp/forget-password";
-const updatePassword = "users/update-password";
-const changePassword = "users/change-password";
 const checkEmail = "users/check-email";
 const checkPhone = "users/check-phone";
-const updateUserProfile = "users/update-user";
-const deleteUser = "users/";
-
-// User-specific order routes
-const getUserOrders = "auction/order/user";
-const getUserInvoices = "auction/invoice/user";
 
 export {
   API_BASE_URL,
-  // Authentication & User Management
+  
+  // 🔐 Authentication APIs
   login,
+  signup,
+  sendCode,
+  verifyOtpRegistration,
+  forgotPassword,
+  verifyOtpForgotPassword,
+  updatePassword,
+  changePassword,
+  getUser,
+  updateUser,
+  deleteUser,
+  
+  // 🏛️ Auction APIs
+  getAuctions,
+  getAuctionDetail,
+  getLotDetail,
+  likeAuction,
+  getFavoriteAuctions,
+  createAuctionRegistration,
+  getMyRegistrations,
+  editAuctionRegistration,
+  
+  // 📁 Category APIs
+  getAllCategories,
+  getSubcategories,
+  
+  // 👤 User Profile APIs
+  updateUserProfile,
+  
+  // 📝 Orders & Invoices
+  getCustomerOrders,
+  getOrderDetails,
+  getCustomerInvoices,
+  
+  // 💳 Payment APIs
+  getPaymentKey,
+  createPayment,
+  paymentHistory,
+  
+  // 💬 Chat & Messaging
+  getAllConversation,
+  getUserMessages,
+  sendMessage,
+  getLiveChat,
+  seenMessage,
+  
+  // 🔔 Notifications
+  getNotification,
+  markNotificationSeen,
+  deleteNotification,
+  
+  // 📱 Support & Help
+  createSupport,
+  getFAQCategories,
+  getFAQs,
+  getFooterInfo,
+  
+  // 📁 File Upload
+  imageUpload,
+  videoUpload,
+  
+  // 🌍 Localization & Settings
+  getCurrencyRates,
+  getPrivacyPolicy,
+  getTermsConditions,
+  
+  // 🏦 Bank & Payment Methods
+  getBanks,
+  
+  // 🔄 Refund & Wallet
+  requestRefund,
+  addToWallet,
+  
+  // Legacy endpoints
+  getAllAuctionUsingPaging,
+  getUserOrders,
+  getUserInvoices,
+  
+  // Admin endpoints (not used in mobile app)
   addStaff,
   getStaffUsers,
   updateStaffUser,
   deleteStaffUser,
   teamLogin,
   quote,
-  imageUpload,
   createCompanyMember,
   editCompanyMember,
   getCompanyMember,
@@ -238,11 +359,7 @@ export {
   getClientDetails,
   acceptStatusProposal,
   getPackages,
-  getUser,
-  
-  // Payment APIs
   paymentCheckout,
-  paymentKey,
   compeleteSubscription,
   updateSubscription,
   cancelSubscription,
@@ -256,117 +373,72 @@ export {
   documentsCrud,
   uploadFileApi,
   updatepayinvoice,
-  
-  // Team Member APIs
   taskAssign,
   editTask,
   getTask,
   updateStatus,
   updateComment,
   teamMetrices,
-  
-  // Email Configuration APIs
   emailConfigureCreate,
   emailConfigureSend,
   emailConfigureGet,
   getCompanies,
   changeClientPassword,
-  
-  // Chat APIs
-  getAllConversation,
-  getUserMessages,
-  seenMessage,
   chatUserConversation,
-  
-  // Payment & Account APIs
   verifyAccount,
   createAccountStripe,
   createPaymentStripe,
   companyEditProfile,
   paymentProposals,
-  paymentHistory,
-  
-  // Metrics APIs
   leadMetrices,
   clientMetrices,
   askPayment,
   updatePayment,
   sendOtherProposal,
   taskMetrices,
-  
-  // Notification APIs
-  getNotification,
-  deleteNotification,
-  seenNotification,
-  
-  // Privacy & Terms APIs
-  getPrivacyPolicy,
+  getPrivacyPolicyLegacy,
   getTerms,
-  
-  // Support APIs
-  createSupport,
   getSupports,
   attendSupport,
-  
-  // FAQs APIs
   faqCrud,
   faqCatCrud,
-  
-  // Payment & Subscription APIs
   getCompaniesSubscriptions,
   getSubscriptionCard,
   paymentAddCard,
-  
-  // Bank APIs
   bankGet,
   bankPost,
   bankPut,
   bankDelete,
-  
-  // Category APIs
   createCat,
   editCat,
   allCat,
   allCatUsingPaging,
   catStatus,
   changeStatusCat,
-  
-  // Lot APIs
   createNewLot,
   editLot,
   getAllLots,
   getWithoutPagingLot,
   updateLotStatus,
-  
-  // Auction APIs
   createNewAuction,
   editAuction,
   updateAuctionStatus,
-  getAllAuctionUsingPaging,
-  getAuctions,
   adminEditAuctionStatus,
   auctionStatus,
   selectAuctionLot,
-  getAuctionDetail,
   editAuctionApplication,
   deleteAuctionApplication,
   auctionBidWinners,
   orderUpdate,
   bidWinnerDetail,
-  getLiveChat,
   auctionRegistrationTracking,
-  createAuctionRegistration,
-  editAuctionRegistration,
   getAuctionRegistration,
   privacyPages,
   getInvoiceDetail,
-  updateUser,
   sendInvoice,
   getInvoices,
   editInvoice,
   updateTransaction,
-  
-  // Footer & Dashboard APIs
   footerCrud,
   footerImageUpload,
   dashboardMetrices,
@@ -376,37 +448,15 @@ export {
   cashierMetrices,
   clearanceMetrices,
   auctioneerMetrices,
-  
-  // Support & Email APIs
   getSubscribeEmails,
   sendUpdates,
-  
-  // Deposit & Refund APIs
   refundProcess,
   stripeRefund,
-  addToWallet,
-  
-  // Subcategory APIs
   subCatCreate,
   allSubCat,
   getPaginatedSubCat,
   editSubCat,
   subCatStatusUpdate,
-  
-  // User Authentication APIs (for our app)
-  sendCode,
-  verifyOtpRegistration,
-  signup,
-  forgotPassword,
-  verifyOtpForgotPassword,
-  updatePassword,
-  changePassword,
   checkEmail,
   checkPhone,
-  updateUserProfile,
-  deleteUser,
-  
-  // User-specific order routes
-  getUserOrders,
-  getUserInvoices,
 }; 
