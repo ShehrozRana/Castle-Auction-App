@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, SafeAreaView, TouchableOpacity, ScrollView, ActivityIndicator, TextInput, Alert } from 'react-native';
+import { StyleSheet, Text, View, SafeAreaView, TouchableOpacity, ScrollView, ActivityIndicator, TextInput, Alert, Image } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons, MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -8,6 +8,7 @@ import OrderScreen from './OrderScreen';
 import ProfileScreen from './ProfileScreen';
 import AuthScreen from './AuthScreen';
 import ChatScreen from './ChatScreen';
+import AuctionDetailScreen from './AuctionDetailScreen';
 import { 
   API_BASE_URL, 
   login, 
@@ -54,6 +55,9 @@ export default function App() {
   const [showOtpVerification, setShowOtpVerification] = useState(false);
   const [otpMode, setOtpMode] = useState('signup'); // 'signup' or 'forgot-password'
   const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showAuctionDetail, setShowAuctionDetail] = useState(false);
+  const [selectedAuction, setSelectedAuction] = useState(null);
+  const [favoriteAuctions, setFavoriteAuctions] = useState([]);
   
   // Data states for different screens
   const [auctionData, setAuctionData] = useState([]);
@@ -164,6 +168,53 @@ export default function App() {
   };
 
   // Debug function to check token status
+  // Handle image loading errors
+  const handleImageError = (auction, fallbackText = '🏛️') => {
+    console.log('Image failed to load for auction:', auction.id || auction.title);
+    return fallbackText;
+  };
+
+  // Auction detail handlers
+  const handleAuctionCardPress = (auction) => {
+    setSelectedAuction(auction);
+    setShowAuctionDetail(true);
+  };
+
+  const handleBackFromAuctionDetail = () => {
+    setShowAuctionDetail(false);
+    setSelectedAuction(null);
+  };
+
+  const handleToggleFavorite = (auction) => {
+    if (favoriteAuctions.some(fav => fav.id === auction.id)) {
+      setFavoriteAuctions(favoriteAuctions.filter(fav => fav.id !== auction.id));
+    } else {
+      setFavoriteAuctions([...favoriteAuctions, auction]);
+    }
+  };
+
+  const handlePlaceBid = async (bidAmount) => {
+    try {
+      // Here you would make an API call to place the bid
+      console.log('Placing bid:', bidAmount, 'for auction:', selectedAuction?.id);
+      // Example API call:
+      // const response = await fetch(`${apiUrl}/auction/bid/${selectedAuction.id}`, {
+      //   method: 'POST',
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //     'Authorization': `Bearer ${authToken}`
+      //   },
+      //   body: JSON.stringify({ bidAmount })
+      // });
+      // const data = await response.json();
+      // if (data.success) {
+      //   // Update auction data or show success message
+      // }
+    } catch (error) {
+      console.error('Error placing bid:', error);
+    }
+  };
+
   const debugTokenStatus = async () => {
     const storedToken = await getStoredToken();
     const storedUserData = await getStoredUserData();
@@ -385,6 +436,17 @@ export default function App() {
       const data = await response.json();
       console.log('Auction data received:', data);
       console.log('Auction data structure:', JSON.stringify(data, null, 2));
+      
+      // Log first auction item structure for debugging
+      if (data.success && data.data && data.data.length > 0) {
+        console.log('First auction item structure:', JSON.stringify(data.data[0], null, 2));
+        console.log('Available image fields:', {
+          image: data.data[0].image,
+          images: data.data[0].images,
+          lotImage: data.data[0].lotImage,
+          lotImages: data.data[0].lotImages,
+        });
+      }
       
       if (data.success && data.data) {
         console.log('Setting auction data:', data.data);
@@ -1318,6 +1380,9 @@ export default function App() {
     } else if (showChat) {
       setShowChat(false);
       setCurrentTab('home');
+    } else if (showAuctionDetail) {
+      setShowAuctionDetail(false);
+      setSelectedAuction(null);
     }
   };
 
@@ -1439,6 +1504,18 @@ export default function App() {
     );
   }
 
+  if (showAuctionDetail && selectedAuction) {
+    return (
+      <AuctionDetailScreen
+        onBack={handleBackFromAuctionDetail}
+        auction={selectedAuction}
+        onPlaceBid={handlePlaceBid}
+        onToggleFavorite={() => handleToggleFavorite(selectedAuction)}
+        isFavorite={favoriteAuctions.some(fav => fav.id === selectedAuction.id)}
+      />
+    );
+  }
+
   // Home Screen
   return (
     <SafeAreaView style={styles.container}>
@@ -1454,75 +1531,219 @@ export default function App() {
               </Text>
             </View>
             <View style={styles.userDetails}>
-              <Text style={styles.userName}>{getUserGreeting()}</Text>
-              <Text style={styles.userStatus}>
-                {userData ? userData.email : t('guest_user')}
-              </Text>
+              <Text style={styles.userName}>Hello, {getUserDisplayName()}</Text>
+              <Text style={styles.userStatus}>Let's Start The Auction!</Text>
             </View>
           </View>
-          <View style={styles.headerActions}>
-            <TouchableOpacity style={styles.actionButton} onPress={() => handleTabPress('profile')}>
-              <Ionicons name="person" size={20} color="#e74c3c" />
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.actionButton, { marginLeft: 10 }]} onPress={handleLanguageToggle}>
-              <Text style={styles.actionButtonText}>{isArabic ? 'EN' : 'عربي'}</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity style={styles.notificationButton}>
+            <Ionicons name="notifications" size={24} color="#2c3e50" />
+          </TouchableOpacity>
         </View>
+      </View>
+
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <View style={styles.searchBar}>
+          <Ionicons name="search" size={20} color="#95a5a6" style={styles.searchIcon} />
+          <TextInput 
+            style={styles.searchInput}
+            placeholder="Abstract, Vehicles.."
+            placeholderTextColor="#95a5a6"
+          />
+        </View>
+        <TouchableOpacity style={styles.filterButton}>
+          <Ionicons name="options" size={20} color="#ffffff" />
+        </TouchableOpacity>
       </View>
 
       {/* Main Content */}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         
-        {/* Recent Auctions Section */}
-        {isLoggedIn && (
-          <View style={styles.auctionSection}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Recent Auctions</Text>
-              <TouchableOpacity onPress={refreshAuctionData}>
-                <Ionicons name="refresh" size={20} color="#e74c3c" />
+        {/* Popular Types Section */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Popular Types</Text>
+            <TouchableOpacity>
+              <Text style={styles.viewAllText}>View All</Text>
+            </TouchableOpacity>
+          </View>
+          
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
+            {auctionData && auctionData.length > 0 ? (
+              // Show first 2 auctions as category cards
+              auctionData.slice(0, 2).map((auction, index) => (
+                <TouchableOpacity key={auction.id || index} style={styles.categoryCard}>
+                  <View style={styles.categoryImage}>
+                    {auction.image ? (
+                      <Image 
+                        source={{ uri: auction.image }} 
+                        style={styles.categoryBackgroundImage}
+                        resizeMode="cover"
+                        onError={() => handleImageError(auction)}
+                      />
+                    ) : auction.images && auction.images.length > 0 ? (
+                      <Image 
+                        source={{ uri: auction.images[0] }} 
+                        style={styles.categoryBackgroundImage}
+                        resizeMode="cover"
+                        onError={() => handleImageError(auction)}
+                      />
+                    ) : auction.lotImage ? (
+                      <Image 
+                        source={{ uri: auction.lotImage }} 
+                        style={styles.categoryBackgroundImage}
+                        resizeMode="cover"
+                        onError={() => handleImageError(auction)}
+                      />
+                    ) : auction.lotImages && auction.lotImages.length > 0 ? (
+                      <Image 
+                        source={{ uri: auction.lotImages[0] }} 
+                        style={styles.categoryBackgroundImage}
+                        resizeMode="cover"
+                        onError={() => handleImageError(auction)}
+                      />
+                    ) : (
+                      <View style={index === 0 ? styles.abstractBackground : styles.vehicleBackground} />
+                    )}
+                  </View>
+                  <View style={styles.categoryContent}>
+                    <Text style={styles.categoryTitle}>
+                      {auction.title || auction.name || auction.lotName || (index === 0 ? 'Abstract' : 'Vehicles')}
+                    </Text>
+                    <Text style={styles.categorySubtitle}>On everything today</Text>
+                    <Text style={styles.categoryPrice}>
+                      Start from Rp{(auction.startingPrice || auction.currentPrice || auction.price || auction.depositAmount || (index === 0 ? 200000 : 500000)).toLocaleString()}
+                    </Text>
+                    <TouchableOpacity style={styles.exploreButton}>
+                      <Text style={styles.exploreButtonText}>Explore</Text>
+                    </TouchableOpacity>
+                  </View>
+                </TouchableOpacity>
+              ))
+            ) : (
+              // Fallback category cards when no auction data
+              <>
+                <TouchableOpacity style={styles.categoryCard}>
+                  <View style={styles.categoryImage}>
+                    <View style={styles.abstractBackground} />
+                  </View>
+                  <View style={styles.categoryContent}>
+                    <Text style={styles.categoryTitle}>Abstract</Text>
+                    <Text style={styles.categorySubtitle}>On everything today</Text>
+                    <Text style={styles.categoryPrice}>Start from Rp200.000</Text>
+                    <TouchableOpacity style={styles.exploreButton}>
+                      <Text style={styles.exploreButtonText}>Explore</Text>
+                    </TouchableOpacity>
+                  </View>
+                </TouchableOpacity>
+                
+                <TouchableOpacity style={styles.categoryCard}>
+                  <View style={styles.categoryImage}>
+                    <View style={styles.vehicleBackground} />
+                  </View>
+                  <View style={styles.categoryContent}>
+                    <Text style={styles.categoryTitle}>Vehicles</Text>
+                    <Text style={styles.categorySubtitle}>On everything today</Text>
+                    <Text style={styles.categoryPrice}>Start from Rp500.000</Text>
+                    <TouchableOpacity style={styles.exploreButton}>
+                      <Text style={styles.exploreButtonText}>Explore</Text>
+                    </TouchableOpacity>
+                  </View>
+                </TouchableOpacity>
+              </>
+            )}
+          </ScrollView>
+        </View>
+
+        {/* Trending Now Section */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Trending Now</Text>
+            <TouchableOpacity>
+              <Text style={styles.viewAllText}>View All</Text>
+            </TouchableOpacity>
+          </View>
+          
+          {auctionLoading ? (
+            <View style={styles.loadingContainer}>
+              <Text style={styles.loadingText}>Loading auctions...</Text>
+            </View>
+          ) : auctionError ? (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>Error loading auctions: {auctionError}</Text>
+              <TouchableOpacity style={styles.retryButton} onPress={refreshAuctionData}>
+                <Text style={styles.retryButtonText}>Retry</Text>
               </TouchableOpacity>
             </View>
-            
-            {auctionLoading ? (
-              <View style={styles.loadingContainer}>
-                <Text style={styles.loadingText}>Loading auctions...</Text>
-              </View>
-            ) : auctionError ? (
-              <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>Error loading auctions: {auctionError}</Text>
-                <TouchableOpacity style={styles.retryButton} onPress={refreshAuctionData}>
-                  <Text style={styles.retryButtonText}>Retry</Text>
+          ) : auctionData && auctionData.length > 0 ? (
+            <View style={styles.trendingGrid}>
+              {auctionData.slice(0, 4).map((auction, index) => (
+                <TouchableOpacity 
+                  key={auction.id || index} 
+                  style={styles.trendingCard}
+                  onPress={() => handleAuctionCardPress(auction)}
+                >
+                  <View style={styles.trendingImageContainer}>
+                    {auction.image ? (
+                      <Image 
+                        source={{ uri: auction.image }} 
+                        style={styles.trendingImage}
+                        resizeMode="cover"
+                        onError={() => handleImageError(auction)}
+                      />
+                    ) : auction.images && auction.images.length > 0 ? (
+                      <Image 
+                        source={{ uri: auction.images[0] }} 
+                        style={styles.trendingImage}
+                        resizeMode="cover"
+                        onError={() => handleImageError(auction)}
+                      />
+                    ) : auction.lotImage ? (
+                      <Image 
+                        source={{ uri: auction.lotImage }} 
+                        style={styles.trendingImage}
+                        resizeMode="cover"
+                        onError={() => handleImageError(auction)}
+                      />
+                    ) : auction.lotImages && auction.lotImages.length > 0 ? (
+                      <Image 
+                        source={{ uri: auction.lotImages[0] }} 
+                        style={styles.trendingImage}
+                        resizeMode="cover"
+                        onError={() => handleImageError(auction)}
+                      />
+                    ) : (
+                      <View style={styles.trendingImage}>
+                        <Text style={styles.trendingImageText}>🏛️</Text>
+                      </View>
+                    )}
+                    <TouchableOpacity style={styles.heartButton}>
+                      <Ionicons name="heart-outline" size={16} color="#ffffff" />
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.trendingContent}>
+                    <Text style={styles.trendingTitle} numberOfLines={2}>
+                      {auction.title || auction.name || auction.lotName || 'Auction Item'}
+                    </Text>
+                    <Text style={styles.trendingPrice}>
+                      Start From Rp{(auction.startingPrice || auction.currentPrice || auction.price || auction.depositAmount || 0).toLocaleString()}
+                    </Text>
+                    {auction.status && (
+                      <Text style={styles.trendingStatus}>
+                        {auction.status}
+                      </Text>
+                    )}
+                  </View>
                 </TouchableOpacity>
-              </View>
-            ) : auctionData && auctionData.length > 0 ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.auctionScroll}>
-                {auctionData.slice(0, 5).map((auction, index) => (
-                  <TouchableOpacity key={auction.id || index} style={styles.auctionCard}>
-                    <View style={styles.auctionImage}>
-                      <Text style={styles.auctionImageText}>🏛️</Text>
-                    </View>
-                    <Text style={styles.auctionTitle} numberOfLines={2}>
-                      {auction.title || auction.name || 'Auction Item'}
-                    </Text>
-                    <Text style={styles.auctionPrice}>
-                      {auction.depositamount + auction.depositCurrency || auction.currentPrice || auction.price || '0.00'}
-                    </Text>
-                    <Text style={styles.auctionStatus}>
-                      {auction.status || auction.state || 'Active'}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            ) : (
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>No auctions available at the moment.</Text>
-              </View>
-            )}
-          </View>
-        )}
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No trending auctions available.</Text>
+            </View>
+          )}
+        </View>
         
-      
       </ScrollView>
 
       {/* Bottom Navigation */}
@@ -1600,20 +1821,15 @@ const styles = StyleSheet.create({
   
   // Header Styles
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    backgroundColor: '#ffffff',
   },
   
   headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    flex: 1,
   },
 
   userInfo: {
@@ -1653,33 +1869,59 @@ const styles = StyleSheet.create({
     color: '#7f8c8d',
   },
   
-  headerActions: {
-    flexDirection: 'row',
-    marginLeft: 10,
-  },
-  
-  actionButton: {
+  notificationButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    borderWidth: 2,
-    borderColor: '#e74c3c',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#f8f9fa',
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 10,
   },
   
-  actionButtonText: {
+  // Search Bar Styles
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    backgroundColor: '#ffffff',
+  },
+  
+  searchBar: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    marginRight: 10,
+  },
+  
+  searchIcon: {
+    marginRight: 10,
+  },
+  
+  searchInput: {
+    flex: 1,
     fontSize: 16,
-    color: '#e74c3c',
+    color: '#2c3e50',
   },
   
+  filterButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#e74c3c',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
   // Main Content Styles
   content: {
     flex: 1,
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 10,
   },
   
   actionButtons: {
@@ -1707,28 +1949,117 @@ const styles = StyleSheet.create({
   },
   
   section: {
-    marginBottom: 20,
+    marginBottom: 25,
   },
   
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 15,
   },
   
   sectionTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#2c3e50',
-    flex: 1,
   },
   
   viewAllText: {
     fontSize: 14,
-    color: '#7f8c8d',
+    color: '#e74c3c',
+    fontWeight: '500',
   },
   
+  categoryScroll: {
+    paddingVertical: 5,
+  },
+  
+  categoryCard: {
+    width: 280,
+    height: 180,
+    borderRadius: 16,
+    marginRight: 15,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  
+  categoryImage: {
+    width: '100%',
+    height: '100%',
+    position: 'relative',
+  },
+  
+  abstractBackground: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#3498db',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+  },
+  
+  vehicleBackground: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#2c3e50',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+  },
+  
+  categoryBackgroundImage: {
+    width: '100%',
+    height: '100%',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+  },
+  
+  categoryContent: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 20,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  
+  categoryTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#ffffff',
+    marginBottom: 5,
+  },
+  
+  categorySubtitle: {
+    fontSize: 14,
+    color: '#ffffff',
+    opacity: 0.9,
+    marginBottom: 8,
+  },
+  
+  categoryPrice: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
+    marginBottom: 12,
+  },
+  
+  exploreButton: {
+    backgroundColor: '#e74c3c',
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 20,
+    alignSelf: 'flex-start',
+  },
+  
+  exploreButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+
   auctionsContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -1741,57 +2072,80 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  auctionSection: {
-    marginBottom: 20,
-  },
-
-  auctionScroll: {
-    paddingVertical: 10,
-  },
-
-  auctionCard: {
-    width: 200,
-    height: 250,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 10,
-    marginRight: 10,
-    padding: 15,
-    alignItems: 'center',
+  trendingGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
 
-  auctionImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: '#e0e0e0',
+  trendingCard: {
+    width: '48%',
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    marginBottom: 15,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+
+  trendingImageContainer: {
+    position: 'relative',
+  },
+
+  trendingImage: {
+    width: '100%',
+    height: 120,
+    backgroundColor: '#f0f0f0',
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 10,
   },
 
-  auctionImageText: {
-    fontSize: 40,
+  trendingImageText: {
+    fontSize: 30,
   },
 
-  auctionTitle: {
+  heartButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  trendingContent: {
+    padding: 12,
+  },
+
+  trendingTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2c3e50',
+    marginBottom: 6,
+    lineHeight: 18,
+  },
+
+  trendingPrice: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#2c3e50',
-    textAlign: 'center',
-    marginBottom: 5,
-  },
-
-  auctionPrice: {
-    fontSize: 18,
-    fontWeight: 'bold',
     color: '#e74c3c',
-    marginBottom: 5,
   },
 
-  auctionStatus: {
-    fontSize: 14,
+  trendingStatus: {
+    fontSize: 12,
     color: '#7f8c8d',
+    marginTop: 4,
+    textTransform: 'capitalize',
   },
 
   // Loading, Error, and Empty States
