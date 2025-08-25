@@ -3,7 +3,7 @@ import { StyleSheet, Text, View, SafeAreaView, TouchableOpacity, ScrollView, Swi
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons, MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 
-const ProfileScreen = ({ onBack, t, isArabic, onTabPress, userData, getUserDisplayName, onLogout, onDeleteAccount, debugTokenStatus }) => {
+const ProfileScreen = ({ onBack, t, isArabic, onTabPress, userData, getUserDisplayName, onLogout, onDeleteAccount, debugTokenStatus, onShowAuth }) => {
   const [localIsArabic, setLocalIsArabic] = useState(false);
   const [showPersonalInfo, setShowPersonalInfo] = useState(false);
   const [personalInfoForm, setPersonalInfoForm] = useState({
@@ -193,56 +193,111 @@ const ProfileScreen = ({ onBack, t, isArabic, onTabPress, userData, getUserDispl
           <View style={styles.profileAvatar}>
             <Text style={styles.avatarIcon}>👤</Text>
           </View>
-          <Text style={styles.userName}>{getUserDisplayName()}</Text>
-          {userData && userData.email && (
-            <Text style={styles.userEmail}>{userData.email}</Text>
-          )}
-          {userData && userData.type && (
-            <Text style={styles.userType}>Account Type: {userData.type}</Text>
+          {userData ? (
+            <>
+              <Text style={styles.userName}>{getUserDisplayName()}</Text>
+              {userData.email && (
+                <Text style={styles.userEmail}>{userData.email}</Text>
+              )}
+              {userData.type && (
+                <Text style={styles.userType}>Account Type: {userData.type}</Text>
+              )}
+            </>
+          ) : (
+            <>
+              <Text style={styles.userName}>Guest User</Text>
+              <Text style={styles.userEmail}>Please login to access your profile</Text>
+            </>
           )}
         </View>
 
         {/* Menu Items */}
         <View style={styles.menuContainer}>
-                  <TouchableOpacity style={styles.menuItem} onPress={() => setShowPersonalInfo(true)}>
-          <View style={styles.menuIconContainer}>
-            <Ionicons name="person" size={20} color="#7f8c8d" />
-          </View>
-          <Text style={styles.menuText}>{t('personalInformation')}</Text>
-          <Text style={styles.menuArrow}>›</Text>
-        </TouchableOpacity>
+          {userData ? (
+            <>
+              <TouchableOpacity style={styles.menuItem} onPress={() => setShowPersonalInfo(true)}>
+                <View style={styles.menuIconContainer}>
+                  <Ionicons name="person" size={20} color="#7f8c8d" />
+                </View>
+                <Text style={styles.menuText}>{t('personalInformation')}</Text>
+                <Text style={styles.menuArrow}>›</Text>
+              </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem}>
-            <View style={styles.menuIconContainer}>
-              <Ionicons name="heart" size={20} color="#7f8c8d" />
-            </View>
-            <Text style={styles.menuText}>{t('favorites')}</Text>
-            <Text style={styles.menuArrow}>›</Text>
-          </TouchableOpacity>
+              <TouchableOpacity style={styles.menuItem}>
+                <View style={styles.menuIconContainer}>
+                  <Ionicons name="heart" size={20} color="#7f8c8d" />
+                </View>
+                <Text style={styles.menuText}>{t('favorites')}</Text>
+                <Text style={styles.menuArrow}>›</Text>
+              </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem}>
-            <View style={styles.menuIconContainer}>
-              <Ionicons name="trophy" size={20} color="#7f8c8d" />
-            </View>
-            <Text style={styles.menuText}>{t('wonLots')}</Text>
-            <Text style={styles.menuArrow}>›</Text>
-          </TouchableOpacity>
+              <TouchableOpacity style={styles.menuItem}>
+                <View style={styles.menuIconContainer}>
+                  <Ionicons name="trophy" size={20} color="#7f8c8d" />
+                </View>
+                <Text style={styles.menuText}>{t('wonLots')}</Text>
+                <Text style={styles.menuArrow}>›</Text>
+              </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem}>
-            <View style={styles.menuIconContainer}>
-              <Ionicons name="settings" size={20} color="#7f8c8d" />
-            </View>
-            <Text style={styles.menuText}>{t('settings')}</Text>
-            <Text style={styles.menuArrow}>›</Text>
-          </TouchableOpacity>
+              <TouchableOpacity style={styles.menuItem}>
+                <View style={styles.menuIconContainer}>
+                  <Ionicons name="settings" size={20} color="#7f8c8d" />
+                </View>
+                <Text style={styles.menuText}>{t('settings')}</Text>
+                <Text style={styles.menuArrow}>›</Text>
+              </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem}>
-            <View style={styles.menuIconContainer}>
-              <Ionicons name="currency-exchange" size={20} color="#7f8c8d" />
-            </View>
-            <Text style={styles.menuText}>{t('currencySettings')}</Text>
-            <Text style={styles.menuArrow}>›</Text>
-          </TouchableOpacity>
+              <TouchableOpacity style={styles.menuItem}>
+                <View style={styles.menuIconContainer}>
+                  <Ionicons name="currency-exchange" size={20} color="#7f8c8d" />
+                </View>
+                <Text style={styles.menuText}>{t('currencySettings')}</Text>
+                <Text style={styles.menuArrow}>›</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <View style={[styles.menuItem, styles.disabledMenuItem]}>
+                <View style={styles.menuIconContainer}>
+                  <Ionicons name="person" size={20} color="#bdc3c7" />
+                </View>
+                <Text style={[styles.menuText, styles.disabledMenuText]}>{t('personalInformation')}</Text>
+                <Text style={[styles.menuArrow, styles.disabledMenuText]}>›</Text>
+              </View>
+
+              <View style={[styles.menuItem, styles.disabledMenuItem]}>
+                <View style={styles.menuIconContainer}>
+                  <Ionicons name="heart" size={20} color="#bdc3c7" />
+                </View>
+                <Text style={[styles.menuText, styles.disabledMenuText]}>{t('favorites')}</Text>
+                <Text style={[styles.menuArrow, styles.disabledMenuText]}>›</Text>
+              </View>
+
+              <View style={[styles.menuItem, styles.disabledMenuItem]}>
+                <View style={styles.menuIconContainer}>
+                  <Ionicons name="trophy" size={20} color="#bdc3c7" />
+                </View>
+                <Text style={[styles.menuText, styles.disabledMenuText]}>{t('wonLots')}</Text>
+                <Text style={[styles.menuArrow, styles.disabledMenuText]}>›</Text>
+              </View>
+
+              <View style={[styles.menuItem, styles.disabledMenuItem]}>
+                <View style={styles.menuIconContainer}>
+                  <Ionicons name="settings" size={20} color="#bdc3c7" />
+                </View>
+                <Text style={[styles.menuText, styles.disabledMenuText]}>{t('settings')}</Text>
+                <Text style={[styles.menuArrow, styles.disabledMenuText]}>›</Text>
+              </View>
+
+              <View style={[styles.menuItem, styles.disabledMenuItem]}>
+                <View style={styles.menuIconContainer}>
+                  <Ionicons name="currency-exchange" size={20} color="#bdc3c7" />
+                </View>
+                <Text style={[styles.menuText, styles.disabledMenuText]}>{t('currencySettings')}</Text>
+                <Text style={[styles.menuArrow, styles.disabledMenuText]}>›</Text>
+              </View>
+            </>
+          )}
 
           <View style={styles.menuItem}>
             <View style={styles.menuIconContainer}>
@@ -268,7 +323,7 @@ const ProfileScreen = ({ onBack, t, isArabic, onTabPress, userData, getUserDispl
         </View>
 
         {/* Action Buttons */}
-        {userData && (
+        {userData ? (
           <View style={styles.actionButtonsContainer}>
             <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
               <Text style={styles.logoutButtonText}>Logout Account</Text>
@@ -276,6 +331,17 @@ const ProfileScreen = ({ onBack, t, isArabic, onTabPress, userData, getUserDispl
             
             <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteAccount}>
               <Text style={styles.deleteButtonText}>Delete Account</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.actionButtonsContainer}>
+            <TouchableOpacity 
+              style={styles.loginButton} 
+              onPress={() => {
+                onShowAuth && onShowAuth();
+              }}
+            >
+              <Text style={styles.loginButtonText}>Login to Your Account</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -480,6 +546,34 @@ const styles = StyleSheet.create({
     color: '#e74c3c',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  
+  loginButton: {
+    backgroundColor: '#e74c3c',
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginBottom: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  
+  loginButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  
+  disabledMenuItem: {
+    opacity: 0.5,
+  },
+  
+  disabledMenuText: {
+    color: '#bdc3c7',
   },
 
   // Bottom Navigation Styles

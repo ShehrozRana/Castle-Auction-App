@@ -32,7 +32,7 @@ const getSubcategories = "subcat/all"; // GET /subcat/all?category={categoryId}
 const updateUserProfile = "users/update-user";
 
 // 📝 Orders & Invoices
-const getCustomerOrders = "auction/customer/order"; // GET /auction/customer/order
+const getCustomerOrders = "auction/customer/order/"; // GET /auction/customer/order/:id
 const getOrderDetails = "auction/order/details"; // GET /auction/order/details
 const getCustomerInvoices = "auction/customer/invoices"; // GET /auction/customer/invoices
 

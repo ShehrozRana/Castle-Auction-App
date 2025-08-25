@@ -208,11 +208,21 @@ const AuctionDetailScreen = ({
               </Text>
               <View style={styles.participantsRow}>
                 <View style={styles.avatars}>
-                  <View style={styles.avatar}>👤</View>
-                  <View style={styles.avatar}>👤</View>
-                  <View style={styles.avatar}>👤</View>
-                  <View style={styles.avatar}>👤</View>
-                  <View style={styles.moreAvatars}>+24</View>
+                  <View style={styles.avatar}>
+                    <Text style={styles.avatarEmoji}>👤</Text>
+                  </View>
+                  <View style={styles.avatar}>
+                    <Text style={styles.avatarEmoji}>👤</Text>
+                  </View>
+                  <View style={styles.avatar}>
+                    <Text style={styles.avatarEmoji}>👤</Text>
+                  </View>
+                  <View style={styles.avatar}>
+                    <Text style={styles.avatarEmoji}>👤</Text>
+                  </View>
+                  <View style={styles.moreAvatars}>
+                    <Text style={styles.moreAvatarsText}>+24</Text>
+                  </View>
                 </View>
                 <Text style={styles.participantsText}>are live</Text>
               </View>
@@ -558,6 +568,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 8,
+  },
+  
+  moreAvatarsText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  
+  avatarEmoji: {
+    fontSize: 12,
   },
   
   participantsText: {

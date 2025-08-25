@@ -9,6 +9,7 @@ import ProfileScreen from './ProfileScreen';
 import AuthScreen from './AuthScreen';
 import ChatScreen from './ChatScreen';
 import AuctionDetailScreen from './AuctionDetailScreen';
+import CategoryAuctionsScreen from './CategoryAuctionsScreen';
 import { 
   API_BASE_URL, 
   login, 
@@ -58,6 +59,12 @@ export default function App() {
   const [showAuctionDetail, setShowAuctionDetail] = useState(false);
   const [selectedAuction, setSelectedAuction] = useState(null);
   const [favoriteAuctions, setFavoriteAuctions] = useState([]);
+  const [showCategoryAuctions, setShowCategoryAuctions] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [redirectFromAuction, setRedirectFromAuction] = useState(false);
+  
+  // Pagination states
+  const [orderPage, setOrderPage] = useState(1);
   
   // Data states for different screens
   const [auctionData, setAuctionData] = useState([]);
@@ -185,7 +192,33 @@ export default function App() {
     setSelectedAuction(null);
   };
 
+  const handleExploreCategory = (categoryName) => {
+    setSelectedCategory(categoryName);
+    setShowCategoryAuctions(true);
+  };
+
+  const handleBackFromCategoryAuctions = () => {
+    setShowCategoryAuctions(false);
+    setSelectedCategory('');
+  };
+
+  const handleCategoryAuctionPress = (auction) => {
+    setSelectedAuction(auction);
+    setShowAuctionDetail(true);
+    setShowCategoryAuctions(false);
+  };
+
   const handleToggleFavorite = (auction) => {
+    // Check if user is logged in before allowing favorite toggle
+    if (!isLoggedIn || !authToken) {
+      console.log('User not logged in, redirecting to login for favorite toggle...');
+      // Directly navigate to login screen
+      setRedirectFromAuction(true);
+      setShowAuth(true);
+      setAuthMode('signin');
+      return;
+    }
+
     if (favoriteAuctions.some(fav => fav.id === auction.id)) {
       setFavoriteAuctions(favoriteAuctions.filter(fav => fav.id !== auction.id));
     } else {
@@ -194,6 +227,16 @@ export default function App() {
   };
 
   const handlePlaceBid = async (bidAmount) => {
+    // Check if user is logged in before allowing bid placement
+    if (!isLoggedIn || !authToken) {
+      console.log('User not logged in, redirecting to login...');
+      // Directly navigate to login screen
+      setRedirectFromAuction(true);
+      setShowAuth(true);
+      setAuthMode('signin');
+      return;
+    }
+
     try {
       // Here you would make an API call to place the bid
       console.log('Placing bid:', bidAmount, 'for auction:', selectedAuction?.id);
@@ -335,6 +378,12 @@ export default function App() {
     }
   }, [authToken, isLoggedIn]);
 
+  // Fetch auction data for all users (logged in or not) on app startup
+  useEffect(() => {
+    console.log('Fetching auction data for public viewing...');
+    fetchAuctionData(); // This will work without authentication now
+  }, []);
+
   // Periodic token validation (every 5 minutes)
   useEffect(() => {
     if (!authToken || !isLoggedIn) return;
@@ -367,10 +416,9 @@ export default function App() {
 
   // Data fetching functions with error handling and fallbacks
   const fetchAuctionData = async (token = authToken) => {
-    if (!token) {
-      console.log('No auth token available for auction data fetch');
-      return;
-    }
+    // Allow auction data fetch without authentication for public viewing
+    console.log('Fetching auction data...');
+    console.log('Auth token available:', !!token);
 
     setAuctionLoading(true);
     setAuctionError(null);
@@ -380,13 +428,19 @@ export default function App() {
       console.log('Using endpoint:', `${apiUrl}${getAuctions}1`); // Using page 1 for initial load
       
       // Use the correct auction endpoint with pagination
-      const response = await fetch(`${apiUrl}${getAuctions}1`, {
-        method: 'GET',
-        headers: {
+      const headers = {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+      };
+      
+      // Add authorization header only if token is available
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      const response = await fetch(`${apiUrl}${getAuctions}1`, {
+        method: 'GET',
+        headers,
       });
 
       console.log('Auction response status:', response.status);
@@ -403,11 +457,7 @@ export default function App() {
         // Try the admin endpoint as fallback
         const fallbackResponse = await fetch(`${apiUrl}${getAllAuctionUsingPaging}1`, {
           method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
+          headers,
         });
         
         if (!fallbackResponse.ok) {
@@ -481,9 +531,25 @@ export default function App() {
     }
   };
 
-  const fetchOrderData = async (token = authToken) => {
+  const fetchOrderData = async (token = authToken, page = orderPage) => {
+    console.log('=== fetchOrderData called ===');
+    console.log('Token provided:', !!token);
+    console.log('AuthToken state:', !!authToken);
+    console.log('IsLoggedIn state:', isLoggedIn);
+    console.log('Page provided:', page);
+    console.log('OrderPage state:', orderPage);
+    
+    // Ensure page is a valid number
+    const validPage = page || orderPage || 1;
+    console.log('Using page:', validPage);
+    
     if (!token) {
       console.log('No auth token available for order data fetch');
+      return;
+    }
+    
+    if (!isLoggedIn) {
+      console.log('User not logged in, skipping order data fetch');
       return;
     }
 
@@ -493,15 +559,29 @@ export default function App() {
     try {
       console.log('Fetching order data...');
       console.log('Token being used:', token ? `${token.substring(0, 20)}...` : 'No token');
-      console.log('Endpoint:', `${apiUrl}${getCustomerOrders}`);
+      console.log('Token type:', typeof token);
+      console.log('Token length:', token ? token.length : 0);
+      console.log('Page:', validPage);
+      console.log('Endpoint:', `${apiUrl}${getCustomerOrders}${validPage}`);
+      console.log('Full URL:', `${apiUrl}${getCustomerOrders}${validPage}`);
       
-      const response = await fetch(`${apiUrl}${getCustomerOrders}`, {
+      const headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+        console.log('Authorization header set:', `Bearer ${token.substring(0, 20)}...`);
+      } else {
+        console.error('No token available for authorization!');
+      }
+      
+      console.log('Request headers:', headers);
+      
+      const response = await fetch(`${apiUrl}${getCustomerOrders}${validPage}`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers,
       });
 
       console.log('Order response status:', response.status);
@@ -522,13 +602,19 @@ export default function App() {
       const data = await response.json();
       console.log('Order data received:', data);
       
-      if (data.success && data.data) {
+      if (data.success && data.applications) {
+        setOrderData(data.applications);
+        console.log('Setting order data from applications:', data.applications);
+      } else if (data.success && data.data) {
         setOrderData(data.data);
+        console.log('Setting order data from data:', data.data);
       } else if (data.success && Array.isArray(data)) {
         setOrderData(data);
+        console.log('Setting order data from array:', data);
       } else {
         setOrderData([]);
         console.warn('Order API returned no data or success: false');
+        console.warn('Response structure:', data);
       }
     } catch (error) {
       console.error('Order fetch error:', error);
@@ -543,6 +629,14 @@ export default function App() {
       );
     } finally {
       setOrderLoading(false);
+    }
+  };
+
+  const loadMoreOrders = async () => {
+    if (!orderLoading) {
+      const nextPage = orderPage + 1;
+      setOrderPage(nextPage);
+      await fetchOrderData(authToken, nextPage);
     }
   };
 
@@ -613,6 +707,18 @@ export default function App() {
   };
 
   const fetchChatData = async (token = authToken) => {
+    console.log('=== CHAT DATA FETCH DEBUG ===');
+    console.log('Token provided:', !!token);
+    console.log('Token type:', typeof token);
+    console.log('Token length:', token ? token.length : 0);
+    console.log('Is logged in:', isLoggedIn);
+    console.log('User data available:', !!userData);
+    
+    if (!isLoggedIn) {
+      console.log('User not logged in, skipping chat data fetch');
+      return;
+    }
+    
     if (!token) {
       console.log('No auth token available for chat data fetch');
       return;
@@ -623,15 +729,21 @@ export default function App() {
     
     try {
       console.log('Fetching chat data...');
-      console.log('Endpoint:', `${apiUrl}${getAllConversation}/${userData.id}`);
+      const endpoint = `${apiUrl}${getAllConversation}/${userData._id}`;
+      console.log('Full URL:', endpoint);
+      console.log('Token being sent:', token ? `${token.substring(0, 20)}...` : 'No token');
       
-      const response = await fetch(`${apiUrl}${getAllConversation}/${userData.id}`, {
+      const headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      };
+      
+      console.log('Request headers:', headers);
+      
+      const response = await fetch(endpoint, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: headers,
       });
 
       console.log('Chat response status:', response.status);
@@ -686,9 +798,10 @@ export default function App() {
     }
     
     // Fetch data in parallel for better performance
+    console.log('Starting parallel data fetch with token:', token ? `${token.substring(0, 20)}...` : 'No token');
     await Promise.allSettled([
       fetchAuctionData(token),
-      fetchOrderData(token),
+      fetchOrderData(token, 1), // Explicitly pass page 1
       fetchTransactionData(token),
       fetchChatData(token)
     ]);
@@ -709,7 +822,16 @@ export default function App() {
 
   const refreshOrderData = () => {
     console.log('Refreshing order data...');
-    fetchOrderData(authToken);
+    console.log('AuthToken available:', !!authToken);
+    console.log('IsLoggedIn:', isLoggedIn);
+    
+    if (!authToken || !isLoggedIn) {
+      console.log('Cannot refresh order data - user not authenticated');
+      return;
+    }
+    
+    setOrderPage(1);
+    fetchOrderData(authToken, 1);
   };
 
   const refreshTransactionData = () => {
@@ -719,6 +841,14 @@ export default function App() {
 
   const refreshChatData = () => {
     console.log('Refreshing chat data...');
+    console.log('AuthToken available:', !!authToken);
+    console.log('IsLoggedIn:', isLoggedIn);
+    
+    if (!authToken || !isLoggedIn) {
+      console.log('Cannot refresh chat data - user not authenticated');
+      return;
+    }
+    
     fetchChatData(authToken);
   };
 
@@ -799,6 +929,7 @@ export default function App() {
       setShowOtpVerification(false);
       setShowNewPassword(false);
     } else if (tab === 'profile') {
+      // Profile tab is accessible for all users (logged in or not)
       setCurrentTab('profile');
       setShowAuth(false);
       setShowProfile(true);
@@ -809,7 +940,7 @@ export default function App() {
       setShowOtpVerification(false);
       setShowNewPassword(false);
     } else {
-      // Protected routes
+      // Protected routes (order, transaction, chat)
       if (!isLoggedIn) {
         setShowAuth(true);
         setAuthMode('signin');
@@ -915,7 +1046,12 @@ export default function App() {
           await fetchAllUserData(data.token);
           
           // Navigate to the intended protected screen
-          if (currentTab === 'order') {
+          if (redirectFromAuction) {
+            // User was redirected from auction detail, go back to auction detail
+            setRedirectFromAuction(false);
+            setShowAuth(false);
+            // The auction detail screen should still be visible
+          } else if (currentTab === 'order') {
             setShowOrder(true);
           } else if (currentTab === 'transaction') {
             setShowTransaction(true);
@@ -1258,7 +1394,7 @@ export default function App() {
     // Clear stored data
     await clearStoredData();
     
-    // Clear local data
+        // Clear local data
     setIsLoggedIn(false);
     setUserData(null);
     setAuthToken(null);
@@ -1380,9 +1516,12 @@ export default function App() {
     } else if (showChat) {
       setShowChat(false);
       setCurrentTab('home');
-    } else if (showAuctionDetail) {
-      setShowAuctionDetail(false);
-      setSelectedAuction(null);
+            } else if (showCategoryAuctions) {
+          setShowCategoryAuctions(false);
+          setSelectedCategory('');
+        } else if (showAuctionDetail) {
+          setShowAuctionDetail(false);
+          setSelectedAuction(null);
     }
   };
 
@@ -1455,6 +1594,10 @@ export default function App() {
         onLogout={handleLogout}
         onDeleteAccount={handleDeleteAccount}
         debugTokenStatus={debugTokenStatus}
+        onShowAuth={() => {
+          setShowAuth(true);
+          setAuthMode('signin');
+        }}
       />
     );
   }
@@ -1504,6 +1647,16 @@ export default function App() {
     );
   }
 
+  if (showCategoryAuctions) {
+    return (
+      <CategoryAuctionsScreen
+        onBack={handleBackFromCategoryAuctions}
+        categoryName={selectedCategory}
+        onAuctionPress={handleCategoryAuctionPress}
+      />
+    );
+  }
+
   if (showAuctionDetail && selectedAuction) {
     return (
       <AuctionDetailScreen
@@ -1535,11 +1688,23 @@ export default function App() {
               <Text style={styles.userStatus}>Let's Start The Auction!</Text>
             </View>
           </View>
-          <TouchableOpacity style={styles.notificationButton}>
-            <Ionicons name="notifications" size={24} color="#2c3e50" />
-          </TouchableOpacity>
+          {isLoggedIn ? (
+            <TouchableOpacity style={styles.notificationButton}>
+              <Ionicons name="notifications" size={24} color="#2c3e50" />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity 
+              style={styles.loginButton}
+              onPress={() => {
+                setShowAuth(true);
+                setAuthMode('signin');
+              }}
+            >
+              <Text style={styles.loginButtonText}>Login</Text>
+            </TouchableOpacity>
+          )}
+          </View>
         </View>
-      </View>
 
       {/* Search Bar */}
       <View style={styles.searchContainer}>
@@ -1561,9 +1726,9 @@ export default function App() {
         
         {/* Popular Types Section */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
+            <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Popular Types</Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => handleExploreCategory('All Categories')}>
               <Text style={styles.viewAllText}>View All</Text>
             </TouchableOpacity>
           </View>
@@ -1614,7 +1779,10 @@ export default function App() {
                     <Text style={styles.categoryPrice}>
                       Start from Rp{(auction.startingPrice || auction.currentPrice || auction.price || auction.depositAmount || (index === 0 ? 200000 : 500000)).toLocaleString()}
                     </Text>
-                    <TouchableOpacity style={styles.exploreButton}>
+                    <TouchableOpacity 
+                      style={styles.exploreButton}
+                      onPress={() => handleExploreCategory(index === 0 ? 'Arts & Abstracts' : 'Vehicles')}
+                    >
                       <Text style={styles.exploreButtonText}>Explore</Text>
                     </TouchableOpacity>
                   </View>
@@ -1631,7 +1799,10 @@ export default function App() {
                     <Text style={styles.categoryTitle}>Abstract</Text>
                     <Text style={styles.categorySubtitle}>On everything today</Text>
                     <Text style={styles.categoryPrice}>Start from Rp200.000</Text>
-                    <TouchableOpacity style={styles.exploreButton}>
+                    <TouchableOpacity 
+                      style={styles.exploreButton}
+                      onPress={() => handleExploreCategory('Arts & Abstracts')}
+                    >
                       <Text style={styles.exploreButtonText}>Explore</Text>
                     </TouchableOpacity>
                   </View>
@@ -1645,7 +1816,10 @@ export default function App() {
                     <Text style={styles.categoryTitle}>Vehicles</Text>
                     <Text style={styles.categorySubtitle}>On everything today</Text>
                     <Text style={styles.categoryPrice}>Start from Rp500.000</Text>
-                    <TouchableOpacity style={styles.exploreButton}>
+                    <TouchableOpacity 
+                      style={styles.exploreButton}
+                      onPress={() => handleExploreCategory('Vehicles')}
+                    >
                       <Text style={styles.exploreButtonText}>Explore</Text>
                     </TouchableOpacity>
                   </View>
@@ -1659,23 +1833,23 @@ export default function App() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Trending Now</Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => handleExploreCategory('Trending')}>
               <Text style={styles.viewAllText}>View All</Text>
-            </TouchableOpacity>
-          </View>
-          
-          {auctionLoading ? (
-            <View style={styles.loadingContainer}>
-              <Text style={styles.loadingText}>Loading auctions...</Text>
-            </View>
-          ) : auctionError ? (
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>Error loading auctions: {auctionError}</Text>
-              <TouchableOpacity style={styles.retryButton} onPress={refreshAuctionData}>
-                <Text style={styles.retryButtonText}>Retry</Text>
               </TouchableOpacity>
             </View>
-          ) : auctionData && auctionData.length > 0 ? (
+            
+            {auctionLoading ? (
+              <View style={styles.loadingContainer}>
+                <Text style={styles.loadingText}>Loading auctions...</Text>
+              </View>
+            ) : auctionError ? (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>Error loading auctions: {auctionError}</Text>
+                <TouchableOpacity style={styles.retryButton} onPress={refreshAuctionData}>
+                  <Text style={styles.retryButtonText}>Retry</Text>
+                </TouchableOpacity>
+              </View>
+            ) : auctionData && auctionData.length > 0 ? (
             <View style={styles.trendingGrid}>
               {auctionData.slice(0, 4).map((auction, index) => (
                 <TouchableOpacity 
@@ -1715,7 +1889,7 @@ export default function App() {
                     ) : (
                       <View style={styles.trendingImage}>
                         <Text style={styles.trendingImageText}>🏛️</Text>
-                      </View>
+                    </View>
                     )}
                     <TouchableOpacity style={styles.heartButton}>
                       <Ionicons name="heart-outline" size={16} color="#ffffff" />
@@ -1731,19 +1905,19 @@ export default function App() {
                     {auction.status && (
                       <Text style={styles.trendingStatus}>
                         {auction.status}
-                      </Text>
+                    </Text>
                     )}
                   </View>
-                </TouchableOpacity>
-              ))}
+                  </TouchableOpacity>
+                ))}
             </View>
-          ) : (
-            <View style={styles.emptyContainer}>
+            ) : (
+              <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>No trending auctions available.</Text>
-            </View>
-          )}
-        </View>
-        
+              </View>
+            )}
+          </View>
+      
       </ScrollView>
 
       {/* Bottom Navigation */}
@@ -1878,6 +2052,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   
+  loginButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#e74c3c',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  
+  loginButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  
   // Search Bar Styles
   searchContainer: {
     flexDirection: 'row',
@@ -1916,7 +2105,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-
+  
   // Main Content Styles
   content: {
     flex: 1,
@@ -2059,7 +2248,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-
+  
   auctionsContainer: {
     flex: 1,
     justifyContent: 'center',
